@@ -1,5 +1,8 @@
+
 import tkinter as tk
+import ttkbootstrap as tb
 import requests
+from ttkbootstrap.constants import *
 
 editing_note_id = None
 filtered_notes = []
@@ -27,26 +30,26 @@ def load_notes():
 
     filtered_notes = notes_cache
 
-    listbox.delete(0, tk.END)
+    listbox.delete(0, END)
 
     for note in filtered_notes:
-        listbox.insert(tk.END, note["title"])
+        listbox.insert(END, note["title"])
 
-    listbox.selection_clear(0, tk.END)
+    listbox.selection_clear(0, END)
 
 
 def add_note():
     global editing_note_id
 
     title = title_entry.get()
-    content = content_entry.get()
+    content = content_text.get("1.0", END).strip()
 
     if not title or not content:
         return
 
     headers = {"Authorization": f"Bearer {token}"}
 
-    if editing_note_id:  # edit mode
+    if editing_note_id:
         requests.patch(
             f"{API_URL}/api/notes/{editing_note_id}",
             json={"title": title, "content": content},
@@ -54,18 +57,19 @@ def add_note():
         )
         editing_note_id = None
 
-    else:  # create mode
+    else:
         requests.post(
             f"{API_URL}/api/notes/",
             json={"title": title, "content": content},
             headers=headers
         )
 
-    title_entry.delete(0, tk.END)
-    content_entry.delete(0, tk.END)
+    title_entry.delete(0, END)
+    content_text.delete("1.0", END)
 
     load_notes()
-    
+
+
 def show_note(event):
     selection = listbox.curselection()
 
@@ -79,8 +83,11 @@ def show_note(event):
 
     note = filtered_notes[index]
 
-    view_title.config(text=note["title"])
-    view_content.config(text=note["content"])
+    title_entry.delete(0, END)
+    title_entry.insert(0, note["title"])
+
+    content_text.delete("1.0", END)
+    content_text.insert("1.0", note["content"])
 
 
 def delete_note():
@@ -95,16 +102,11 @@ def delete_note():
         headers={"Authorization": f"Bearer {token}"}
     )
 
+    title_entry.delete(0, END)
+    content_text.delete("1.0", END)
+
     load_notes()
 
-def go_to_list():
-    add_frame.pack_forget()
-    list_frame.pack(fill="both", expand=True)
-
-
-def go_to_add():
-    list_frame.pack_forget()
-    add_frame.pack(fill="both", expand=True)
 
 def edit_note():
     global editing_note_id
@@ -117,13 +119,22 @@ def edit_note():
 
     editing_note_id = note["id"]
 
-    go_to_add()
-
-    title_entry.delete(0, tk.END)
+    title_entry.delete(0, END)
     title_entry.insert(0, note["title"])
 
-    content_entry.delete(0, tk.END)
-    content_entry.insert(0, note["content"])
+    content_text.delete("1.0", END)
+    content_text.insert("1.0", note["content"])
+
+
+def new_note():
+    global editing_note_id
+
+    editing_note_id = None
+
+    title_entry.delete(0, END)
+    content_text.delete("1.0", END)
+
+    listbox.selection_clear(0, END)
 
 
 def search_notes():
@@ -131,17 +142,18 @@ def search_notes():
 
     query = search_entry.get().lower()
 
-    listbox.delete(0, tk.END)
+    listbox.delete(0, END)
 
     filtered_notes = [
         note for note in notes_cache
-        if query in note["title"].lower() or query in note["content"].lower()
+        if query in note["title"].lower()
+        or query in note["content"].lower()
     ]
 
     for note in filtered_notes:
-        listbox.insert(tk.END, note["title"])
+        listbox.insert(END, note["title"])
 
-    listbox.selection_clear(0, tk.END)
+    listbox.selection_clear(0, END)
 
 
 def login():
@@ -152,23 +164,21 @@ def login():
 
     response = requests.post(
         f"{API_URL}/api/login",
-        json={
-            "username": username,
-            "password": password
-        }
+        json={"username": username, "password": password}
     )
 
     if response.status_code == 200:
         token = response.json()["access_token"]
-        status_label.config(text="Logged in!", fg="green")
+        status_label.config(text="Logged in!", foreground="green")
 
         login_frame.pack_forget()
-        main_frame.pack(fill="both", expand=True)
+        main_frame.pack(fill=BOTH, expand=True)
 
-        go_to_add()
         load_notes()
+
     else:
-        status_label.config(text="Login failed", fg="red")
+        status_label.config(text="Login failed", foreground="red")
+
 
 def register():
     username = login_user_entry.get()
@@ -176,84 +186,210 @@ def register():
 
     response = requests.post(
         f"{API_URL}/api/register",
-        json={
-            "username": username,
-            "password": password
-        }
+        json={"username": username, "password": password}
     )
 
     if response.status_code == 201:
-        status_label.config(text="User created! Now login.", fg="green")
+        status_label.config(
+            text="User created! Now login.",
+            foreground="green"
+        )
     else:
-        status_label.config(text="Registration failed", fg="red")
+        status_label.config(
+            text="Registration failed",
+            foreground="red"
+        )
+
+
+def logout():
+    global token, notes_cache, filtered_notes
+
+    token = None
+    notes_cache = []
+    filtered_notes = []
+
+    listbox.delete(0, END)
+
+    title_entry.delete(0, END)
+    content_text.delete("1.0", END)
+
+    search_entry.delete(0, END)
+
+    main_frame.pack_forget()
+    login_frame.pack(fill=BOTH, expand=True)
+
+    login_user_entry.delete(0, END)
+    login_pass_entry.delete(0, END)
+
+    status_label.config(text="Logged out", foreground="green")
+
 
 # WINDOW
 
-root = tk.Tk()
-root.configure(bg="lightblue")
-root.title("Notes App")
-root.geometry("400x400")
+app = tb.Window(themename="darkly")
+app.title("Notes App")
+app.geometry("1000x650")
 
-login_frame = tk.Frame(root, bg="lightblue")
-login_frame.pack(fill="both", expand=True) #only show LOGIN frame at startup
+# LOGIN FRAME
 
-main_frame = tk.Frame(root)
+login_frame = tb.Frame(app)
+login_frame.pack(fill=BOTH, expand=True)
 
-add_frame = tk.Frame(main_frame, bg="lightblue")
-list_frame = tk.Frame(main_frame, bg="lightblue")
+tb.Label(
+    login_frame,
+    text="Notes App",
+    font=("Segoe UI", 22, "bold")
+).pack(pady=(50, 25))
 
-#LOGIN SCREEN
-tk.Label(login_frame, text="Username", font=("Segoe UI", 11, "bold"), bg="lightblue").pack()
+tb.Label(
+    login_frame,
+    text="Username",
+    font=("Segoe UI", 11, "bold")
+).pack()
 
-login_user_entry = tk.Entry(login_frame)
-login_user_entry.pack()
+login_user_entry = tb.Entry(login_frame, width=30)
+login_user_entry.pack(pady=(0, 15))
 
-tk.Label(login_frame, text="Password", font=("Segoe UI", 11, "bold"), bg="lightblue").pack()
+tb.Label(
+    login_frame,
+    text="Password",
+    font=("Segoe UI", 11, "bold")
+).pack()
 
-login_pass_entry = tk.Entry(login_frame, show="*")
-login_pass_entry.pack()
+login_pass_entry = tb.Entry(login_frame, show="*", width=30)
+login_pass_entry.pack(pady=(0, 20))
 
-tk.Button(login_frame, text="Login", command=login).pack(pady=5)
-tk.Button(login_frame, text="Register", command=register).pack(pady=5)
+tb.Button(
+    login_frame,
+    text="Login",
+    command=login,
+    bootstyle=PRIMARY,
+    width=20
+).pack(pady=5)
 
-status_label = tk.Label(login_frame, text="")
-status_label.pack()
-# ADD SCREEN
+tb.Button(
+    login_frame,
+    text="Register",
+    command=register,
+    bootstyle=SECONDARY,
+    width=20
+).pack()
 
-tk.Label(add_frame, text="Title", font=("Segoe UI", 12, "bold"), bg="lightblue").pack()
-title_entry = tk.Entry(add_frame)
-title_entry.pack(pady=(0, 13))
+status_label = tb.Label(login_frame, text="")
+status_label.pack(pady=15)
 
-tk.Label(add_frame, text="Content", font=("Segoe UI", 12, "bold"), bg="lightblue").pack()
-content_entry = tk.Entry(add_frame)
-content_entry.pack(pady=(0, 13))
+# MAIN APP LAYOUT
 
-tk.Button(add_frame, text="Add Note", command=add_note).pack(pady=5)
-tk.Button(add_frame, text="Go to Notes", command=go_to_list).pack()
+main_frame = tb.Frame(app)
 
-# LIST SCREEN
+# SIDEBAR
 
-view_title = tk.Label(list_frame, text="", font=("Segoe UI", 12, "bold"))
-view_content = tk.Label(list_frame, text="", wraplength=350, justify="left")
+sidebar_frame = tb.Frame(main_frame, padding=15)
+sidebar_frame.pack(side=LEFT, fill=Y)
 
-search_entry = tk.Entry(list_frame)
-search_entry.pack(pady=(10, 5))
+tb.Label(
+    sidebar_frame,
+    text="My Notes",
+    font=("Segoe UI", 18, "bold")
+).pack(pady=(0, 15))
 
-tk.Button(list_frame, text="Search", command=search_notes).pack()
-tk.Button(list_frame, text="Reset", command=load_notes).pack()
+search_entry = tb.Entry(sidebar_frame)
+search_entry.pack(fill=X, pady=(0, 10))
 
-listbox = tk.Listbox(list_frame, width=50)
-listbox.pack(pady=(0, 13))
+tb.Button(
+    sidebar_frame,
+    text="Search",
+    command=search_notes,
+    bootstyle=PRIMARY
+).pack(fill=X, pady=(0, 5))
+
+tb.Button(
+    sidebar_frame,
+    text="Reset",
+    command=load_notes,
+    bootstyle=SECONDARY
+).pack(fill=X, pady=(0, 10))
+
+listbox = tk.Listbox(
+    sidebar_frame,
+    bg="#2b2b2b",
+    fg="white",
+    selectbackground="#375a7f",
+    relief="flat",
+    borderwidth=0,
+    font=("Segoe UI", 11)
+)
+
+listbox.pack(fill=BOTH, expand=True)
 
 listbox.bind("<<ListboxSelect>>", show_note)
 
-view_title.pack()
-view_content.pack(pady=10)
+tb.Button(
+    sidebar_frame,
+    text="+ New Note",
+    command=new_note,
+    bootstyle=SUCCESS
+).pack(fill=X, pady=(10, 5))
 
-tk.Button(list_frame, text="Edit Note", command=edit_note).pack(pady=(0, 10))
-tk.Button(list_frame, text="Delete Note", command=delete_note).pack(pady=(0, 13))
-tk.Button(list_frame, text="Back to Add Note", command=go_to_add).pack()
+tb.Button(
+    sidebar_frame,
+    text="Delete Note",
+    command=delete_note,
+    bootstyle=DANGER
+).pack(fill=X, pady=(0, 5))
+
+tb.Button(
+    sidebar_frame,
+    text="Logout",
+    command=logout,
+    bootstyle=SECONDARY
+).pack(fill=X)
+
+# EDITOR AREA
+
+editor_frame = tb.Frame(main_frame, padding=20)
+editor_frame.pack(side=LEFT, fill=BOTH, expand=True)
+
+tb.Label(
+    editor_frame,
+    text="Title",
+    font=("Segoe UI", 12, "bold")
+).pack(anchor="w")
+
+title_entry = tb.Entry(
+    editor_frame,
+    font=("Segoe UI", 16)
+)
+
+title_entry.pack(fill=X, pady=(0, 20))
+
+tb.Label(
+    editor_frame,
+    text="Content",
+    font=("Segoe UI", 12, "bold")
+).pack(anchor="w")
+
+content_text = tk.Text(
+    editor_frame,
+    wrap="word",
+    font=("Segoe UI", 12),
+    bg="#1e1e1e",
+    fg="white",
+    insertbackground="white",
+    relief="flat",
+    padx=10,
+    pady=10
+)
+
+content_text.pack(fill=BOTH, expand=True, pady=(0, 20))
+
+tb.Button(
+    editor_frame,
+    text="Save Note",
+    command=add_note,
+    bootstyle=SUCCESS
+).pack(anchor="e")
 
 # RUN
-# do NOT load notes at startup
-root.mainloop()
+
+app.mainloop()

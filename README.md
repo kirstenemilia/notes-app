@@ -20,6 +20,7 @@ Built with
 - SQLAlchemy
 - SQLite
 - Tkinter
+- ttkbootstrap
 
 # Project Structure
 -backend/ Flask API + database models
@@ -27,4 +28,4 @@ Built with
 -instance/ SQLite database file
 -archive/ Old code
 
-This project is currently being expanded into a full-stack web app with React and cloud deployment.
+This project is currently being expanded.
